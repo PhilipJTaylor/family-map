@@ -28,6 +28,8 @@ needs the small local web server from step 2.)
 | `timeline.js` | The time player: year slider, play/pause and speed. |
 | `family.js` | Home person and family filters (ancestors, descendants, close relatives). |
 | `arrows.js` | Arrows from parents' to children's birth places for the chosen family line. |
+| `gazetteer.js` | Looks places up in our own place database before going online. |
+| `tools/build_places.py` | Builds the place database (`data/places/*.json`) from GeoNames. Runs automatically on GitHub. |
 | `app.js` | Connects everything and draws pins on the map. |
 | `sample.ged` | A small made-up family for testing. |
 
@@ -40,3 +42,13 @@ Run `node tests/places.test.js`. It checks made-up examples and prints any that 
 ## Version number
 
 The page title shows a version like `v0.4` (in `index.html`). Increase it with every change, so you can tell which version the live site is showing.
+
+## Place database
+
+`data/places/` holds one file per country, made from [GeoNames](https://www.geonames.org/)
+(CC BY 4.0) by `tools/build_places.py`. GitHub rebuilds it automatically whenever that script
+changes, or by hand: repository **Actions** tab > **Build place database** > **Run workflow**.
+To add a country, add its two-letter code to `COUNTRIES` in the script, and its name to
+`COUNTRY_CODES` in `gazetteer.js`.
+
+Run `node tests/gazetteer.test.js` to check the lookup rules.

@@ -81,12 +81,17 @@ async function showFamily(text, label) {
   };
   const zoomToPins = () => { if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 8 }); };
 
-  // Step A: draw every place we already know from earlier visits. This is instant.
+  // Step A: draw every place we already know, from earlier visits or from our own
+  // place database (downloaded once per country). This is quick.
+  await loadGazetteers(places, code => setStatus(`Loading place data for ${code}...`));
+  if (run !== currentRun) return;
   const toLookUp = [];
   for (const place of places) {
     const saved = lookupSaved(place);
-    if (saved === undefined) toLookUp.push(place);
-    else pinPlace(place, saved);
+    if (saved !== undefined) { pinPlace(place, saved); continue; }
+    const found = gazetteerLookup(place);
+    if (found) pinPlace(place, found);
+    else toLookUp.push(place);
   }
   redraw();
   zoomToPins();
