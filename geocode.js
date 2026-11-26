@@ -74,21 +74,48 @@ function lookupSaved(place) {
 }
 
 let lastRequestTime = 0;
+const NORMAL_GAP_MS = 1500; // a little slower than the 1-per-second limit, to be a good neighbour
 
-// Ask Nominatim about one exact search text, keeping to one request per second.
+// app.js can set this to show a message while we wait after a failed lookup.
+let onLookupWait = null;
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Ask Nominatim about one exact search text.
+// If the service refuses or can't be reached (it does this when it's busy, or when one
+// computer has asked a lot of questions), wait and try again instead of giving up:
+// 1 minute, then 2, 4, 8, and then every 15 minutes, for up to about 2 hours.
 async function askNominatim(query) {
-  const waitMs = lastRequestTime + 1100 - Date.now();
-  if (waitMs > 0) await new Promise(resolve => setTimeout(resolve, waitMs));
-  lastRequestTime = Date.now();
+  const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=en&q=" + encodeURIComponent(query);
+  const MAX_TRIES = 12;
+  for (let attempt = 1; ; attempt++) {
+    const waitMs = lastRequestTime + NORMAL_GAP_MS - Date.now();
+    if (waitMs > 0) await sleep(waitMs);
+    lastRequestTime = Date.now();
 
-  const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + encodeURIComponent(query);
-  const response = await fetch(url, { headers: { "Accept-Language": "en" } });
-  if (!response.ok) throw new Error("Lookup failed with status " + response.status);
-  const results = await response.json();
-  const answer = results.length ? { lat: Number(results[0].lat), lon: Number(results[0].lon) } : null;
-  queryCache[query.toLowerCase()] = answer;
-  saveCacheSoon();
-  return answer;
+    let problem;
+    try {
+      const response = await fetch(url);
+      if (response.ok) {
+        const results = await response.json();
+        const answer = results.length ? { lat: Number(results[0].lat), lon: Number(results[0].lon) } : null;
+        queryCache[query.toLowerCase()] = answer;
+        saveCacheSoon();
+        return answer;
+      }
+      problem = "the lookup service answered with error " + response.status;
+    } catch (err) {
+      // "Failed to fetch": no answer at all. Usually the service is limiting us, or the internet dropped.
+      problem = "the lookup service didn't answer";
+    }
+
+    if (attempt >= MAX_TRIES) throw new Error(problem + " for over 2 hours");
+    const delayMs = Math.min(60000 * 2 ** (attempt - 1), 15 * 60000);
+    if (onLookupWait) onLookupWait(problem, delayMs);
+    await sleep(delayMs);
+  }
 }
 
 // Find coordinates for a place, going online only for searches never asked before.
