@@ -62,6 +62,9 @@ function applyFamilyFilter() {
   stepsSelect.disabled = !homePerson || line === "everyone";
   listPeople(visibleList());
   redraw();
+  // Zoom the map to fit the chosen family.
+  const spots = [...dotsBySpot.values()].map(d => [d.coords.lat, d.coords.lon]);
+  if (visiblePeople && spots.length) map.fitBounds(spots, { padding: [30, 30], maxZoom: 8 });
 }
 
 // Everyone shown on the map right now.

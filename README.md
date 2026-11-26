@@ -27,6 +27,7 @@ needs the small local web server from step 2.)
 | `geocode.js` | Looks up coordinates for place names, one per second, and remembers them. |
 | `timeline.js` | The time player: year slider, play/pause and speed. |
 | `family.js` | Home person and family filters (ancestors, descendants, close relatives). |
+| `arrows.js` | Arrows from parents' to children's birth places for the chosen family line. |
 | `app.js` | Connects everything and draws pins on the map. |
 | `sample.ged` | A small made-up family for testing. |
 

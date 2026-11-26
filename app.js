@@ -131,6 +131,7 @@ function redraw() {
   pinLayer.clearLayers();
   dotsBySpot = new Map();
   const year = timelineYear(); // null means "all years"
+  drawArrows(pinLayer, visiblePeople, year); // arrows first, so dots sit on top
   const groups = new Map(); // spot -> entries
   for (const person of visibleList()) {
     const entries = year === null
