@@ -31,5 +31,6 @@ jobs:
             echo "No changes to the place files."
           else
             git commit -m "Update place database from GeoNames"
+            git pull --rebase   # in case someone pushed while this was running
             git push
           fi
