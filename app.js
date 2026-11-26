@@ -9,11 +9,16 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
 
-// All the pins live in one group so we can clear them when a new file is loaded.
+// All the dots live in one group so we can clear them when a new file is loaded.
 const pinLayer = L.layerGroup().addTo(map);
 
-// Colours for each kind of event.
-const EVENT_COLOURS = { Birth: "#2f855a", Christening: "#38a169", Residence: "#d69e2e", Death: "#c53030", Burial: "#9b2c2c" };
+// One dot per spot on the map. Several place names can land on the same spot
+// (for example two spellings of a town), so dots are keyed by their coordinates.
+let dotsBySpot = new Map(); // "lat,lon" -> {marker, coords, entries: [{person, ev}]}
+
+// Order of sections inside a dot's popup.
+const EVENT_ORDER = ["Birth", "Christening", "Residence", "Death", "Burial"];
+const MAX_NAMES_PER_SECTION = 150;
 
 const statusEl = document.getElementById("status");
 const peopleListEl = document.getElementById("peopleList");
@@ -43,6 +48,7 @@ let currentRun = 0; // lets a new file cancel lookups still running for an old o
 async function showFamily(text, label) {
   const run = ++currentRun;
   pinLayer.clearLayers();
+  dotsBySpot = new Map();
 
   const people = parseGedcom(text);
   listPeople(people);
@@ -66,7 +72,7 @@ async function showFamily(text, label) {
   let pinned = 0, notFound = 0;
   const pinPlace = (place, coords) => {
     if (!coords) { notFound++; return; }
-    for (const { person, ev } of eventsByPlace.get(place)) addPin(person, ev, coords);
+    addToDot(coords, eventsByPlace.get(place));
     bounds.push([coords.lat, coords.lon]);
     pinned++;
   };
@@ -110,21 +116,48 @@ async function showFamily(text, label) {
     (notFound ? `, ${notFound} places not found.` : "."));
 }
 
-function addPin(person, ev, coords) {
-  // Approximate places (only the county or country was found) are drawn larger and fainter.
-  const marker = L.circleMarker([coords.lat, coords.lon], {
-    radius: coords.approximate ? 10 : 6,
-    color: EVENT_COLOURS[ev.type] || "#555",
-    fillOpacity: coords.approximate ? 0.25 : 0.8,
-    weight: 1
-  });
-  const note = coords.approximate ? `<br><em>Approximate: placed at "${escapeHtml(coords.matched)}"</em>` : "";
-  marker.bindPopup(
-    `<strong>${escapeHtml(person.name)}</strong><br>` +
-    `${ev.type}${ev.year ? " " + ev.year : ""}<br>` +
-    `${escapeHtml(ev.place)}${note}`
-  );
-  marker.addTo(pinLayer);
+// Add events to the dot at these coordinates, creating the dot if it's the first.
+function addToDot(coords, entries) {
+  const key = coords.lat.toFixed(4) + "," + coords.lon.toFixed(4);
+  let dot = dotsBySpot.get(key);
+  if (!dot) {
+    // Approximate places (only the county or country was found) are drawn fainter.
+    const marker = L.circleMarker([coords.lat, coords.lon], {
+      color: "#2b6cb0",
+      fillOpacity: coords.approximate ? 0.2 : 0.7,
+      weight: 1
+    }).addTo(pinLayer);
+    dot = { marker, coords, entries: [] };
+    dotsBySpot.set(key, dot);
+    // The popup text is only built when someone clicks, which keeps big trees fast.
+    marker.bindPopup(() => dotPopup(dot), { maxWidth: 320 });
+  }
+  dot.entries.push(...entries);
+  // Busier places get bigger dots.
+  dot.marker.setRadius(Math.min(4 + Math.sqrt(dot.entries.length) * 1.5, 22));
+}
+
+// The popup for a dot: everyone at that place, grouped by event and sorted by year.
+function dotPopup(dot) {
+  const people = new Set(dot.entries.map(e => e.person));
+  const names = [...new Set(dot.entries.map(e => e.ev.place))];
+  let html = `<div class="popup"><strong>${escapeHtml(names[0])}</strong>`;
+  if (names.length > 1) html += `<div class="also">Also written: ${names.slice(1, 6).map(escapeHtml).join("; ")}${names.length > 6 ? "; ..." : ""}</div>`;
+  if (dot.coords.approximate) html += `<div class="also"><em>Approximate: placed at "${escapeHtml(dot.coords.matched)}"</em></div>`;
+  html += `<div class="count">${people.size} ${people.size === 1 ? "person" : "people"}</div>`;
+
+  for (const type of EVENT_ORDER) {
+    const rows = dot.entries.filter(e => e.ev.type === type)
+      .sort((a, b) => (a.ev.year || 9999) - (b.ev.year || 9999));
+    if (!rows.length) continue;
+    html += `<div class="section">${type}s (${rows.length})</div><ul>`;
+    for (const { person, ev } of rows.slice(0, MAX_NAMES_PER_SECTION)) {
+      html += `<li>${escapeHtml(person.name)} <span class="dates">${ev.year || "?"}</span></li>`;
+    }
+    if (rows.length > MAX_NAMES_PER_SECTION) html += `<li><em>and ${rows.length - MAX_NAMES_PER_SECTION} more</em></li>`;
+    html += "</ul>";
+  }
+  return html + "</div>";
 }
 
 function listPeople(people) {

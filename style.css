@@ -63,3 +63,10 @@ footer { font-size: 12px; color: #777; }
   main { flex-direction: column; height: auto; }
   #map { height: 60vh; }
 }
+
+/* Dot popups: scroll when a place has many people. */
+.popup { max-height: 320px; overflow-y: auto; font-size: 13px; }
+.popup .also { color: #666; font-size: 12px; margin-top: 2px; }
+.popup .count { margin: 4px 0; color: #444; }
+.popup .section { font-weight: 600; margin-top: 8px; }
+.popup ul { margin: 2px 0; padding-left: 16px; }
