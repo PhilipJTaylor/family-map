@@ -1,0 +1,63 @@
+/* Basic page layout. Change colours and sizes here. */
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  margin: 0;
+  color: #222;
+  background: #fafafa;
+}
+
+header, .controls, footer {
+  padding: 8px 16px;
+}
+
+h1 { margin: 8px 0 0; }
+.tagline { margin: 4px 0 8px; color: #555; }
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.file-button, button {
+  background: #2b6cb0;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 15px;
+  cursor: pointer;
+}
+button { background: #4a5568; }
+.file-button input { display: none; }
+
+#status { margin: 0; color: #555; }
+
+main {
+  display: flex;
+  height: 70vh;
+  padding: 0 16px;
+  gap: 12px;
+}
+#map { flex: 3; border-radius: 8px; }
+#peoplePanel {
+  flex: 1;
+  overflow-y: auto;
+  background: white;
+  border-radius: 8px;
+  padding: 0 12px;
+  border: 1px solid #ddd;
+}
+#peoplePanel h2 { font-size: 16px; }
+#peopleList { padding-left: 16px; font-size: 14px; }
+#peopleList li { margin-bottom: 6px; }
+.dates { color: #777; }
+
+footer { font-size: 12px; color: #777; }
+
+/* On phones, stack the map above the list. */
+@media (max-width: 700px) {
+  main { flex-direction: column; height: auto; }
+  #map { height: 60vh; }
+}
