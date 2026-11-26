@@ -1,8 +1,9 @@
 // corrections.js
 // Fixing wrong locations, and keeping a log of every fix.
 //
-// Click "Fix" next to a person in a dot's popup (or the pencil in the People list),
-// choose which event is wrong, then either type the correct place or click the map.
+// Click "Fix this place" in a dot's popup to move everyone at that place at once, or the
+// pencil in the People list to fix one person's event. Then type the correct place, click
+// the map, or choose "Unknown place". Each event changed gets its own line in the log.
 // Fixes are saved in this browser, so they're still there when you load the file again.
 // The log lists each fix (name, dates, event, before and after) so you can make the same
 // corrections in Ancestry. It can be copied or downloaded as a spreadsheet (CSV) file.
@@ -45,10 +46,38 @@ const fixEventSelect = document.getElementById("fixEvent");
 const fixCurrentEl = document.getElementById("fixCurrent");
 const fixPlaceInput = document.getElementById("fixPlace");
 const fixMessage = document.getElementById("fixMessage");
+const fixEventLabel = fixEventSelect.closest("label");
 let fixingPerson = null;
+let fixingPlace = null; // when fixing a whole place: {name, entries: [{person, ev}]}
+
+// Every event (of everyone in the file) shown at this spot on the map.
+function entriesAtSpot(key) {
+  const entries = [];
+  for (const person of currentPeople) {
+    for (const ev of person.events) if (ev.coords && spotKey(ev.coords) === key) entries.push({ person, ev });
+  }
+  return entries;
+}
+
+function openPlaceFixDialog(key) {
+  const entries = entriesAtSpot(key);
+  if (!entries.length) return;
+  fixingPerson = null;
+  fixingPlace = { name: entries[0].ev.place, entries };
+  const people = new Set(entries.map(e => e.person)).size;
+  fixPersonEl.textContent = `${fixingPlace.name}: ${entries.length} ${entries.length === 1 ? "event" : "events"} ` +
+    `for ${people} ${people === 1 ? "person" : "people"}. The fix applies to all of them, and each is logged separately.`;
+  fixEventLabel.hidden = true;
+  fixCurrentEl.textContent = `Now shown at: ${describeCoords(entries[0].ev)}`;
+  fixMessage.textContent = "";
+  fixPlaceInput.value = "";
+  fixDialog.showModal();
+}
 
 function openFixDialog(person, ev) {
   fixingPerson = person;
+  fixingPlace = null;
+  fixEventLabel.hidden = false;
   fixPersonEl.textContent = `${person.name} (${lifeDates(person)})`;
   fixEventSelect.innerHTML = "";
   person.events.forEach((e, i) => {
@@ -72,7 +101,15 @@ function selectedEvent() {
   return fixingPerson.events[Number(fixEventSelect.value)];
 }
 
+// The events the current fix will change.
+function fixTargets() {
+  if (fixingPlace) return fixingPlace.entries;
+  const ev = selectedEvent();
+  return ev ? [{ person: fixingPerson, ev }] : [];
+}
+
 function showCurrent() {
+  if (fixingPlace) return;
   const ev = fixingPerson && selectedEvent();
   if (!ev) { fixCurrentEl.textContent = ""; return; }
   fixCurrentEl.textContent = ev.coords
@@ -85,10 +122,23 @@ function describeCoords(ev) {
   return `${c.matched || ev.place} (${c.lat.toFixed(3)}, ${c.lon.toFixed(3)})${c.approximate ? ", approximate" : ""}`;
 }
 
-// Save a fix for the chosen event and write it to the log.
+// Save a fix for the chosen event(s), writing one log line per event.
 function saveFix(newCoords, newPlaceText) {
-  const ev = selectedEvent();
-  const person = fixingPerson;
+  const targets = fixTargets();
+  if (!targets.length) return;
+  for (const { person, ev } of targets) saveOneFix(person, ev, newCoords, newPlaceText);
+  saveCorrections();
+  fixDialog.close();
+  redraw();
+  const what = fixingPlace
+    ? `${fixingPlace.name} (${targets.length} ${targets.length === 1 ? "event" : "events"})`
+    : `${targets[0].person.name}, ${targets[0].ev.type}`;
+  setStatus(newCoords
+    ? `Fixed: ${what}, now at ${newPlaceText}.`
+    : `Fixed: ${what}, marked as unknown place and taken off the map.`);
+}
+
+function saveOneFix(person, ev, newCoords, newPlaceText) {
   const died = person.events.find(e => e.type === "Death");
   const key = eventKey(person, ev);
   const earlier = corrections[key];
@@ -103,14 +153,11 @@ function saveFix(newCoords, newPlaceText) {
     beforePlace: earlier ? earlier.beforePlace : ev.place,
     beforeShownAt: earlier ? earlier.beforeShownAt : (ev.coords ? describeCoords(ev) : "not on map"),
     afterPlace: newPlaceText,
-    afterCoords: { lat: newCoords.lat, lon: newCoords.lon, approximate: false, matched: newPlaceText }
+    // null = "unknown place": the event is taken off the map.
+    afterCoords: newCoords ? { lat: newCoords.lat, lon: newCoords.lon, approximate: false, matched: newPlaceText } : null
   };
   ev.fixed = true;
   ev.coords = corrections[key].afterCoords;
-  saveCorrections();
-  fixDialog.close();
-  redraw();
-  setStatus(`Fixed: ${person.name}, ${ev.type}, now at ${newPlaceText}.`);
 }
 
 // "Find" button: look up the typed place in our database, then online.
@@ -131,8 +178,8 @@ document.getElementById("fixFind").addEventListener("click", async () => {
 // "Click the map" button: close the window, wait for one click on the map.
 document.getElementById("fixClickMap").addEventListener("click", () => {
   fixDialog.close();
-  const ev = selectedEvent();
-  setStatus(`Click the map where ${fixingPerson.name}'s ${ev.type.toLowerCase()} should be. (Press Esc to cancel.)`);
+  const what = fixingPlace ? fixingPlace.name : `${fixingPerson.name}'s ${selectedEvent().type.toLowerCase()}`;
+  setStatus(`Click the map where ${what} should be. (Press Esc to cancel.)`);
   document.getElementById("map").classList.add("picking");
   const finish = () => {
     document.getElementById("map").classList.remove("picking");
@@ -148,11 +195,21 @@ document.getElementById("fixClickMap").addEventListener("click", () => {
   document.addEventListener("keydown", onEsc);
 });
 
+// "Unknown place" button: the recorded place is wrong or isn't a place at all (like "Deceased").
+document.getElementById("fixUnknown").addEventListener("click", () => saveFix(null, "Unknown (no place)"));
+
 document.getElementById("fixCancel").addEventListener("click", () => fixDialog.close());
 fixEventSelect.addEventListener("change", showCurrent);
 
 // "Fix" links inside dot popups and pencils in the People list.
 document.addEventListener("click", e => {
+  const placeLink = e.target.closest("[data-fix-spot]");
+  if (placeLink) {
+    e.preventDefault();
+    map.closePopup();
+    openPlaceFixDialog(placeLink.dataset.fixSpot);
+    return;
+  }
   const link = e.target.closest("[data-fix-person]");
   if (!link) return;
   e.preventDefault();
@@ -192,7 +249,7 @@ document.getElementById("logButton").addEventListener("click", () => {
   logTable.innerHTML = rows.length
     ? `<thead><tr>${LOG_COLUMNS.map(([, h]) => `<th>${h}</th>`).join("")}</tr></thead><tbody>` +
       rows.map(r => `<tr>${LOG_COLUMNS.map(([k]) => `<td>${escapeHtml(r[k])}</td>`).join("")}</tr>`).join("") + "</tbody>"
-    : "<tr><td>No corrections yet. Click a dot, then \"Fix\" next to a name.</td></tr>";
+    : "<tr><td>No corrections yet. Click a dot, then \"Fix this place\".</td></tr>";
   logDialog.showModal();
 });
 

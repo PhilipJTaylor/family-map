@@ -13,7 +13,7 @@
 </head>
 <body>
   <header>
-    <h1>Family Map <span class="version">v1.0</span></h1>
+    <h1>Family Map <span class="version">v1.1</span></h1>
     <p class="tagline">See where your ancestors were born and died. Your file stays on your computer.</p>
   </header>
 
@@ -69,7 +69,7 @@
     <div id="map"></div>
     <aside id="peoplePanel">
       <h2>People</h2>
-      <p class="hint">Click a name to make them the home person.</p>
+      <p class="hint">Click a name to make them the home person, or the pencil to fix one of their places.</p>
       <ul id="peopleList"></ul>
     </aside>
   </main>
@@ -83,6 +83,7 @@
     <div class="dialog-buttons">
       <button id="fixFind" type="button">Find this place</button>
       <button id="fixClickMap" type="button">Or click the map</button>
+      <button id="fixUnknown" type="button" class="unknown">Unknown place</button>
       <button id="fixCancel" type="button" class="plain">Cancel</button>
     </div>
     <p id="fixMessage" class="muted"></p>
