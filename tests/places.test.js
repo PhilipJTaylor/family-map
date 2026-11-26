@@ -22,6 +22,11 @@ const cases = [
   ["probably Kent, England", "Kent, England"],
   ["RIVERBY, Kent", "Riverby, Kent, England"],
   ["Lost at Sea", "Lost at Sea"],
+  ["Townham Kent England", "Townham, Kent, England"],
+  ["Riverby New York", "Riverby, New York, USA"],
+  ["Townham - Kent -, England", "Townham, Kent, England"],
+  ["Townham, Northants", "Townham, Northamptonshire, England"],
+  ["Townham Kent, England", "Townham, Kent, England"],
   ["", ""]
 ];
 

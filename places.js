@@ -21,6 +21,16 @@ const COUNTRY_NAMES = {
 };
 const UK_NATIONS = ["England", "Scotland", "Wales", "Northern Ireland"];
 
+// Common English county abbreviations.
+const COUNTY_ABBREVIATIONS = {
+  "beds": "Bedfordshire", "berks": "Berkshire", "bucks": "Buckinghamshire", "cambs": "Cambridgeshire",
+  "derbys": "Derbyshire", "glos": "Gloucestershire", "gloucs": "Gloucestershire", "hants": "Hampshire",
+  "herts": "Hertfordshire", "hunts": "Huntingdonshire", "lancs": "Lancashire", "leics": "Leicestershire",
+  "lincs": "Lincolnshire", "northants": "Northamptonshire", "notts": "Nottinghamshire", "oxon": "Oxfordshire",
+  "salop": "Shropshire", "staffs": "Staffordshire", "warks": "Warwickshire", "wilts": "Wiltshire",
+  "worcs": "Worcestershire", "yorks": "Yorkshire"
+};
+
 const US_STATES = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado",
   CT: "Connecticut", DE: "Delaware", DC: "District of Columbia", FL: "Florida", GA: "Georgia",
@@ -57,14 +67,21 @@ const CENSUS_SUFFIX = /\s+(ward|precinct|beat|division|district|assembly distric
 const CENSUS_ONLY = /^(justice precinct|precinct|militia district|election district|division|district|beat|ward|township \d+ range|supervisor'?s district)\b/i;
 
 function normalizePlace(place) {
-  let parts = String(place)
+  let parts = splitWithoutCommas(String(place)
     .replace(/[?]/g, "")                 // "England?" -> "England"
+    .replace(/\s+-(\s+|(?=,)|$)|;/g, ",")) // "Townham - Kent -, England" -> "Townham, Kent, England"
     .split(",")
     .map(p => p.trim().replace(/\s+/g, " ").replace(/^[.\s]+|[.\s]+$/g, ""))
     .map(p => p.replace(/^(of|probably|possibly|prob\.?|poss\.?|near|nr\.?|abt\.?|about)\s+/i, "")) // "probably Kent" -> "Kent"
     .map(p => (p.length > 3 && p === p.toUpperCase() && /[A-Z]/.test(p)) ? titleCase(p) : p)        // "NEWPORT" -> "Newport"
     .filter(p => p && !/^\d+$/.test(p)); // drop empty bits and bare numbers like "1852"
   if (parts.length === 0) return "";
+
+  // "Townham Kent, England" -> "Townham, Kent, England" (an English county typed without its comma).
+  parts = parts.flatMap(p => {
+    const m = p.match(/^(.+?)\s+(\S+)$/);
+    return m && (ENGLISH_COUNTIES.has(m[2].toLowerCase()) || COUNTY_ABBREVIATIONS[m[2].toLowerCase()]) ? [m[1], m[2]] : [p];
+  });
 
   // Country names: "United States of America" -> "USA", "England." -> "England".
   parts = parts.map(p => COUNTRY_NAMES[p.toLowerCase()] || p);
@@ -76,6 +93,9 @@ function normalizePlace(place) {
 
   // US state abbreviations: "MA" -> "Massachusetts" (only in the last two positions, to avoid towns).
   parts = parts.map((p, i) => (i >= parts.length - 2 && US_STATES[p.toUpperCase()] && p.length === 2) ? US_STATES[p.toUpperCase()] : p);
+
+  // County abbreviations: "Northants" -> "Northamptonshire".
+  parts = parts.map(p => COUNTY_ABBREVIATIONS[p.toLowerCase().replace(/\.$/, "")] || p);
 
   // Add a missing country: "..., Utah" -> "..., Utah, USA"; "..., Kent" -> "..., Kent, England".
   const last = parts[parts.length - 1].toLowerCase();
@@ -119,4 +139,24 @@ function normalizePlace(place) {
 
 function titleCase(text) {
   return text.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Some places are typed with spaces instead of commas: "Townham Kent England".
+// If there are no commas, peel known country, state and county names off the end.
+function splitWithoutCommas(text) {
+  if (text.includes(",")) return text;
+  const words = text.trim().split(/\s+/);
+  const tail = [];
+  const known = w => {
+    const l = w.toLowerCase();
+    return COUNTRY_NAMES[l] || ENGLISH_COUNTIES.has(l) || US_STATE_NAMES.has(l) || COUNTY_ABBREVIATIONS[l.replace(/\.$/, "")];
+  };
+  while (words.length > 1) {
+    // Try two-word names first ("New York", "United States"), then one word.
+    const two = words.slice(-2).join(" ");
+    if (words.length > 2 && known(two)) { tail.unshift(two); words.splice(-2); continue; }
+    if (known(words[words.length - 1])) { tail.unshift(words.pop()); continue; }
+    break;
+  }
+  return [words.join(" "), ...tail].join(", ");
 }

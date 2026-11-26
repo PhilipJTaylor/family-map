@@ -13,6 +13,16 @@ const COUNTRY_CODES = {
   "italy": "IT", "norway": "NO", "sweden": "SE", "denmark": "DK", "south africa": "ZA"
 };
 
+// Rough centres of whole countries, for places recorded only as "England" or "USA".
+const COUNTRY_CENTRES = {
+  "england": [52.6, -1.5], "scotland": [56.8, -4.2], "wales": [52.3, -3.7], "northern ireland": [54.6, -6.7],
+  "united kingdom": [54.0, -2.5], "ireland": [53.2, -8.0], "usa": [39.8, -98.6], "canada": [56.1, -106.3],
+  "australia": [-25.3, 133.8], "new zealand": [-41.5, 172.8], "germany": [51.2, 10.4], "france": [46.6, 2.2],
+  "netherlands": [52.2, 5.3], "belgium": [50.6, 4.6], "switzerland": [46.8, 8.2], "austria": [47.6, 14.1],
+  "poland": [52.1, 19.4], "italy": [42.8, 12.6], "norway": [61.4, 8.8], "sweden": [62.2, 15.6],
+  "denmark": [56.0, 9.5], "south africa": [-29.0, 24.7]
+};
+
 const gazetteers = new Map(); // country code -> {index: Map(name -> [places]), admin1, admin2}
 let availableCountries = null;
 
@@ -62,11 +72,15 @@ function buildIndex(data) {
 // Tries the most exact part first, then the next one ("Kent, England"), like the online lookup.
 // Returns {lat, lon, approximate, matched} or null.
 function gazetteerLookup(place) {
+  const parts = place.split(", ");
+  const centre = COUNTRY_CENTRES[place.toLowerCase()];
+  if (centre) return { lat: centre[0], lon: centre[1], approximate: true, matched: place };
+
   const code = countryCodeOf(place);
-  const index = code && gazetteers.get(code);
+  if (!code) return lookupWithoutCountry(parts);
+  const index = gazetteers.get(code);
   if (!index) return null;
 
-  const parts = place.split(", ");
   for (let i = 0; i < parts.length - 1; i++) {
     const candidates = index.get(parts[i].toLowerCase());
     if (!candidates) continue;
@@ -86,8 +100,9 @@ function bestCandidate(candidates, context, countryWord) {
     context.some(w => w === c.admin1);
 
   // With a county or state given that matches none of several same-named places,
-  // we can't tell which one is meant: leave it to the online lookup.
-  if (context.length && candidates.length > 1 && !candidates.some(matchesContext)) return null;
+  // we can't tell which one is meant: leave it to the online lookup. (Unless they're
+  // all close together, like a city and the district named after it.)
+  if (context.length && candidates.length > 1 && !candidates.some(matchesContext) && !allClose(candidates)) return null;
 
   let best = null, bestScore = -Infinity;
   for (const c of candidates) {
@@ -99,4 +114,25 @@ function bestCandidate(candidates, context, countryWord) {
     if (score > bestScore) { best = c; bestScore = score; }
   }
   return best;
+}
+
+// True if all these places are within about 30 km of each other.
+function allClose(places) {
+  const lats = places.map(p => p.lat), lons = places.map(p => p.lon);
+  return Math.max(...lats) - Math.min(...lats) < 0.3 && Math.max(...lons) - Math.min(...lons) < 0.5;
+}
+
+// A place with no recognisable country, like just "Townham" or "Townham, Riverby".
+// Look in every country file we loaded; use it only if exactly one country has that name.
+function lookupWithoutCountry(parts) {
+  const found = [];
+  for (const index of gazetteers.values()) {
+    const candidates = index.get(parts[0].toLowerCase());
+    if (!candidates) continue;
+    const context = parts.slice(1).map(p => p.toLowerCase());
+    const best = bestCandidate(candidates, context, "");
+    if (best) found.push(best);
+  }
+  if (found.length !== 1) return null;
+  return { lat: found[0].lat, lon: found[0].lon, approximate: false, matched: parts.join(", ") };
 }

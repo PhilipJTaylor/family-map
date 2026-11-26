@@ -22,7 +22,9 @@ const cases = [
   ["Townham, Surrey, England", "none"],          // two Townhams, neither in Surrey: ask online instead
   ["Newville, Kent, England", "51.2,0.7,approximate"],
   ["Kent, England", "51.2,0.7,exact"],
-  ["Paris, France", "none"]                       // no file loaded for France
+  ["Paris, France", "none"],                      // no file loaded for France
+  ["England", "52.6,-1.5,approximate"],            // country only: its rough centre
+  ["Tunham", "51.1,1.1,exact"]                     // no country, but only one loaded country has it
 ];
 
 let failed = 0;
