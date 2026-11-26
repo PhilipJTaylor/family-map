@@ -1,0 +1,4 @@
+# Never commit real family files. Only the made-up sample is allowed.
+*.ged
+*.gedcom
+!sample.ged

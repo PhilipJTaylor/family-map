@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Family Map</title>
+
+  <!-- Leaflet: the free map library. Loaded from a public CDN, pinned to one version. -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Family Map</h1>
+    <p class="tagline">See where your ancestors were born and died. Your file stays on your computer.</p>
+  </header>
+
+  <section class="controls">
+    <label class="file-button">
+      Choose a GEDCOM file (.ged)
+      <input type="file" id="fileInput" accept=".ged,.gedcom,text/plain">
+    </label>
+    <button id="sampleButton" type="button">Or try the sample family</button>
+    <p id="status">No file loaded yet.</p>
+  </section>
+
+  <main>
+    <div id="map"></div>
+    <aside id="peoplePanel">
+      <h2>People</h2>
+      <ul id="peopleList"></ul>
+    </aside>
+  </main>
+
+  <footer>
+    Place lookups by <a href="https://nominatim.openstreetmap.org/">OpenStreetMap Nominatim</a>.
+    Only place names are sent, never names of people.
+  </footer>
+
+  <script src="gedcom.js"></script>
+  <script src="geocode.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
