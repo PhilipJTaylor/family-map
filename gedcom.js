@@ -13,6 +13,8 @@
 
 function parseGedcom(text) {
   const people = [];
+  const families = new Map(); // family id -> {husband, wife, children: [ids]}
+  let family = null;   // the family record we are currently reading
   let person = null;   // the person we are currently reading
   let event = null;    // the event (birth, death...) we are currently reading
 
@@ -35,15 +37,29 @@ function parseGedcom(text) {
     if (level === 0) {
       // A new top-level record starts. Only INDI records are people.
       person = null;
+      family = null;
       event = null;
       if (tag === "INDI") {
         person = { id: id, name: "(no name)", events: [] };
         people.push(person);
+      } else if (tag === "FAM") {
+        family = { husband: null, wife: null, children: [] };
+        families.set(id, family);
       }
       continue;
     }
 
-    if (!person) continue; // we're inside a family, source, etc. Skip for now.
+    // Family records say who the parents and children are:
+    //   0 @F1@ FAM / 1 HUSB @I1@ / 1 WIFE @I2@ / 1 CHIL @I3@
+    if (family && level === 1) {
+      const who = value.replace(/@/g, "").trim();
+      if (tag === "HUSB") family.husband = who;
+      else if (tag === "WIFE") family.wife = who;
+      else if (tag === "CHIL") family.children.push(who);
+      continue;
+    }
+
+    if (!person) continue; // we're inside a source, note, etc. Skip it.
 
     if (level === 1) {
       event = null;
@@ -62,7 +78,28 @@ function parseGedcom(text) {
       }
     }
   }
+  linkFamilies(people, families);
   return people;
+}
+
+// Give each person lists of their parents, children and spouses (as person objects).
+function linkFamilies(people, families) {
+  const byId = new Map(people.map(p => [p.id, p]));
+  for (const p of people) { p.parents = []; p.children = []; p.spouses = []; }
+  for (const fam of families.values()) {
+    const parents = [byId.get(fam.husband), byId.get(fam.wife)].filter(Boolean);
+    const children = fam.children.map(id => byId.get(id)).filter(Boolean);
+    if (parents.length === 2) {
+      parents[0].spouses.push(parents[1]);
+      parents[1].spouses.push(parents[0]);
+    }
+    for (const child of children) {
+      for (const parent of parents) {
+        child.parents.push(parent);
+        parent.children.push(child);
+      }
+    }
+  }
 }
 
 // Pull a 4-digit year out of a GEDCOM date like "ABT 1850" or "12 MAR 1850".

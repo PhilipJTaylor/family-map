@@ -52,7 +52,7 @@ async function showFamily(text, label) {
 
   const people = parseGedcom(text);
   currentPeople = people;
-  listPeople(people);
+  setUpFamilyFilter(people);
   setUpTimeline(people);
 
   // Group every event by its (tidied) place name, so each place is handled once.
@@ -132,7 +132,7 @@ function redraw() {
   dotsBySpot = new Map();
   const year = timelineYear(); // null means "all years"
   const groups = new Map(); // spot -> entries
-  for (const person of currentPeople) {
+  for (const person of visibleList()) {
     const entries = year === null
       ? person.events.filter(ev => ev.coords).map(ev => ({ person, ev }))
       : whereInYear(person, year);
@@ -217,6 +217,8 @@ function listPeople(people) {
   for (const person of sorted) {
     const li = document.createElement("li");
     li.innerHTML = `${escapeHtml(person.name)} <span class="dates">${lifeDates(person)}</span>`;
+    li.title = "Make this the home person";
+    li.addEventListener("click", () => setHomePerson(person));
     peopleListEl.appendChild(li);
   }
 }

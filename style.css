@@ -46,6 +46,20 @@ button { background: #4a5568; }
 }
 #playButton { background: #2f855a; min-width: 72px; }
 #yearSlider { flex: 1; min-width: 160px; }
+.family {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 0 16px 8px;
+}
+.family input, .family select { font-size: 14px; padding: 4px 6px; }
+#homePerson { width: 260px; max-width: 70vw; }
+#filterNote { color: #555; font-size: 14px; }
+.hint { font-size: 12px; color: #777; margin-top: -6px; }
+#peopleList li { cursor: pointer; }
+#peopleList li:hover { color: #2b6cb0; }
+
 #yearLabel { font-size: 20px; font-weight: 600; min-width: 90px; }
 
 main {

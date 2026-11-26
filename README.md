@@ -26,6 +26,7 @@ needs the small local web server from step 2.)
 | `places.js` | Cleans up place names so near-duplicates ("Co.", "USA" vs "United States", church names, census wards) count as one place. |
 | `geocode.js` | Looks up coordinates for place names, one per second, and remembers them. |
 | `timeline.js` | The time player: year slider, play/pause and speed. |
+| `family.js` | Home person and family filters (ancestors, descendants, close relatives). |
 | `app.js` | Connects everything and draws pins on the map. |
 | `sample.ged` | A small made-up family for testing. |
 
