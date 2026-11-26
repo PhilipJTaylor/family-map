@@ -51,7 +51,9 @@ async function showFamily(text, label) {
   dotsBySpot = new Map();
 
   const people = parseGedcom(text);
+  currentPeople = people;
   listPeople(people);
+  setUpTimeline(people);
 
   // Group every event by its (tidied) place name, so each place is handled once.
   const eventsByPlace = new Map(); // place name -> list of {person, ev}
@@ -72,7 +74,8 @@ async function showFamily(text, label) {
   let pinned = 0, notFound = 0;
   const pinPlace = (place, coords) => {
     if (!coords) { notFound++; return; }
-    addToDot(coords, eventsByPlace.get(place));
+    for (const { ev } of eventsByPlace.get(place)) ev.coords = coords; // remember where each event is
+    redrawSoon();
     bounds.push([coords.lat, coords.lon]);
     pinned++;
   };
@@ -85,6 +88,7 @@ async function showFamily(text, label) {
     if (saved === undefined) toLookUp.push(place);
     else pinPlace(place, saved);
   }
+  redraw();
   zoomToPins();
 
   // Step B: look up the rest online, one per second, adding pins as each is found.
@@ -112,13 +116,49 @@ async function showFamily(text, label) {
     if (pinned === 25 || i === toLookUp.length - 1) zoomToPins();
   }
 
+  redraw();
   setStatus(`Done: ${people.length} people, ${pinned} places on the map` +
     (notFound ? `, ${notFound} places not found.` : "."));
 }
 
+// ---- Drawing the dots ----
+
+let currentPeople = [];
+
+// Redraw every dot for the current view: either all events, or who was where in the
+// timeline's chosen year. Called while places load, and whenever the year changes.
+function redraw() {
+  pinLayer.clearLayers();
+  dotsBySpot = new Map();
+  const year = timelineYear(); // null means "all years"
+  const groups = new Map(); // spot -> entries
+  for (const person of currentPeople) {
+    const entries = year === null
+      ? person.events.filter(ev => ev.coords).map(ev => ({ person, ev }))
+      : whereInYear(person, year);
+    for (const entry of entries) {
+      const key = spotKey(entry.ev.coords);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(entry);
+    }
+  }
+  for (const entries of groups.values()) addToDot(entries[0].ev.coords, entries, year);
+}
+
+// While places are loading, redraw at most every 2 seconds rather than after every place.
+let redrawTimer = null;
+function redrawSoon() {
+  if (redrawTimer) return;
+  redrawTimer = setTimeout(() => { redrawTimer = null; redraw(); }, 2000);
+}
+
+function spotKey(coords) {
+  return coords.lat.toFixed(4) + "," + coords.lon.toFixed(4);
+}
+
 // Add events to the dot at these coordinates, creating the dot if it's the first.
-function addToDot(coords, entries) {
-  const key = coords.lat.toFixed(4) + "," + coords.lon.toFixed(4);
+function addToDot(coords, entries, year = null) {
+  const key = spotKey(coords);
   let dot = dotsBySpot.get(key);
   if (!dot) {
     // Approximate places (only the county or country was found) are drawn fainter.
@@ -127,7 +167,7 @@ function addToDot(coords, entries) {
       fillOpacity: coords.approximate ? 0.2 : 0.7,
       weight: 1
     }).addTo(pinLayer);
-    dot = { marker, coords, entries: [] };
+    dot = { marker, coords, entries: [], year };
     dotsBySpot.set(key, dot);
     // The popup text is only built when someone clicks, which keeps big trees fast.
     marker.bindPopup(() => dotPopup(dot), { maxWidth: 320 });
@@ -145,6 +185,17 @@ function dotPopup(dot) {
   if (names.length > 1) html += `<div class="also">Also written: ${names.slice(1, 6).map(escapeHtml).join("; ")}${names.length > 6 ? "; ..." : ""}</div>`;
   if (dot.coords.approximate) html += `<div class="also"><em>Approximate: placed at "${escapeHtml(dot.coords.matched)}"</em></div>`;
   html += `<div class="count">${people.size} ${people.size === 1 ? "person" : "people"}</div>`;
+
+  if (dot.year !== null) {
+    // Timeline view: who was living here in the chosen year.
+    const rows = [...people].sort((a, b) => (birthYear(a) || 9999) - (birthYear(b) || 9999));
+    html += `<div class="section">Living here in ${dot.year}</div><ul>`;
+    for (const person of rows.slice(0, MAX_NAMES_PER_SECTION)) {
+      html += `<li>${escapeHtml(person.name)} <span class="dates">${lifeDates(person)}</span></li>`;
+    }
+    if (rows.length > MAX_NAMES_PER_SECTION) html += `<li><em>and ${rows.length - MAX_NAMES_PER_SECTION} more</em></li>`;
+    return html + "</ul></div>";
+  }
 
   for (const type of EVENT_ORDER) {
     const rows = dot.entries.filter(e => e.ev.type === type)
@@ -164,10 +215,8 @@ function listPeople(people) {
   peopleListEl.innerHTML = "";
   const sorted = [...people].sort((a, b) => (birthYear(a) || 9999) - (birthYear(b) || 9999));
   for (const person of sorted) {
-    const born = birthYear(person);
-    const died = person.events.find(e => e.type === "Death");
     const li = document.createElement("li");
-    li.innerHTML = `${escapeHtml(person.name)} <span class="dates">${born || "?"} to ${died && died.year ? died.year : "?"}</span>`;
+    li.innerHTML = `${escapeHtml(person.name)} <span class="dates">${lifeDates(person)}</span>`;
     peopleListEl.appendChild(li);
   }
 }
@@ -180,4 +229,10 @@ function birthYear(person) {
 // Makes text from the file safe to show inside the page.
 function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function lifeDates(person) {
+  const born = birthYear(person);
+  const died = person.events.find(e => e.type === "Death");
+  return `${born || "?"} to ${died && died.year ? died.year : "?"}`;
 }
