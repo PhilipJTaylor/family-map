@@ -84,15 +84,21 @@ async function showFamily(text, label) {
   // Step B: look up the rest online, one per second, adding pins as each is found.
   for (let i = 0; i < toLookUp.length; i++) {
     const remaining = toLookUp.length - i;
-    const minutes = Math.ceil(remaining * 1.2 / 60);
+    const minutes = Math.ceil(remaining * 1.6 / 60);
     setStatus(`${people.length} people, ${places.length} places. ${pinned} on the map. ` +
       `Looking up ${remaining} new places, about ${minutes} min left. ` +
       `You can explore the map meanwhile. Progress is saved, so closing the page loses nothing.`);
     let coords;
+    onLookupWait = (problem, delayMs) => {
+      if (run !== currentRun) return;
+      const resumeAt = new Date(Date.now() + delayMs).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      setStatus(`${pinned} places on the map. Waiting a moment: ${problem}, which usually means it wants us ` +
+        `to slow down. Trying again automatically at ${resumeAt}. You can leave this page open.`);
+    };
     try {
       coords = await geocodePlace(toLookUp[i]);
     } catch (err) {
-      setStatus("Place lookup paused: " + err.message + ". Reload the page in a minute to continue where it stopped.");
+      setStatus("Place lookup stopped: " + err.message + ". Everything found so far is saved. Try again later and it will continue where it stopped.");
       return;
     }
     if (run !== currentRun) return; // a newer file was loaded; stop this one
