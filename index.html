@@ -13,7 +13,7 @@
 </head>
 <body>
   <header>
-    <h1>Family Map <span class="version">v0.6</span></h1>
+    <h1>Family Map <span class="version">v0.7</span></h1>
     <p class="tagline">See where your ancestors were born and died. Your file stays on your computer.</p>
   </header>
 
@@ -41,10 +41,33 @@
     <label><input type="checkbox" id="allYears" checked> All years</label>
   </section>
 
+  <section class="family">
+    <label>Home person
+      <input id="homePerson" list="homeOptions" placeholder="Type a name..." autocomplete="off">
+      <datalist id="homeOptions"></datalist>
+    </label>
+    <label>Show
+      <select id="lineSelect">
+        <option value="everyone">Everyone</option>
+        <option value="ancestors">Ancestors (where they came from)</option>
+        <option value="descendants">Descendants (where the family went)</option>
+      </select>
+    </label>
+    <label>Include
+      <select id="stepsSelect">
+        <option value="0">Direct line only</option>
+        <option value="1">+ immediate family</option>
+        <option value="2">+ 2 steps of family</option>
+      </select>
+    </label>
+    <span id="filterNote"></span>
+  </section>
+
   <main>
     <div id="map"></div>
     <aside id="peoplePanel">
       <h2>People</h2>
+      <p class="hint">Click a name to make them the home person.</p>
       <ul id="peopleList"></ul>
     </aside>
   </main>
@@ -58,6 +81,7 @@
   <script src="places.js"></script>
   <script src="geocode.js"></script>
   <script src="timeline.js"></script>
+  <script src="family.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
