@@ -107,6 +107,7 @@ dialog h3 { margin-top: 0; }
 dialog label { display: block; margin: 8px 0; font-size: 14px; }
 dialog input, dialog select { width: 100%; max-width: 480px; font-size: 14px; padding: 4px 6px; box-sizing: border-box; }
 .dialog-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+button.unknown { background: #718096; }
 button.plain { background: #e2e8f0; color: #222; }
 .muted { color: #666; font-size: 13px; }
 .log-scroll { max-height: 50vh; overflow: auto; }

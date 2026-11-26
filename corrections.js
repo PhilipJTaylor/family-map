@@ -103,14 +103,17 @@ function saveFix(newCoords, newPlaceText) {
     beforePlace: earlier ? earlier.beforePlace : ev.place,
     beforeShownAt: earlier ? earlier.beforeShownAt : (ev.coords ? describeCoords(ev) : "not on map"),
     afterPlace: newPlaceText,
-    afterCoords: { lat: newCoords.lat, lon: newCoords.lon, approximate: false, matched: newPlaceText }
+    // null = "unknown place": the event is taken off the map.
+    afterCoords: newCoords ? { lat: newCoords.lat, lon: newCoords.lon, approximate: false, matched: newPlaceText } : null
   };
   ev.fixed = true;
   ev.coords = corrections[key].afterCoords;
   saveCorrections();
   fixDialog.close();
   redraw();
-  setStatus(`Fixed: ${person.name}, ${ev.type}, now at ${newPlaceText}.`);
+  setStatus(newCoords
+    ? `Fixed: ${person.name}, ${ev.type}, now at ${newPlaceText}.`
+    : `Fixed: ${person.name}, ${ev.type}, marked as unknown place and taken off the map.`);
 }
 
 // "Find" button: look up the typed place in our database, then online.
@@ -147,6 +150,9 @@ document.getElementById("fixClickMap").addEventListener("click", () => {
   map.once("click", onClick);
   document.addEventListener("keydown", onEsc);
 });
+
+// "Unknown place" button: the recorded place is wrong or isn't a place at all (like "Deceased").
+document.getElementById("fixUnknown").addEventListener("click", () => saveFix(null, "Unknown (no place)"));
 
 document.getElementById("fixCancel").addEventListener("click", () => fixDialog.close());
 fixEventSelect.addEventListener("change", showCurrent);
