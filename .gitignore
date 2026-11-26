@@ -2,3 +2,6 @@
 *.ged
 *.gedcom
 !sample.ged
+
+# Python leftovers
+__pycache__/

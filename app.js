@@ -81,13 +81,23 @@ async function showFamily(text, label) {
   };
   const zoomToPins = () => { if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 8 }); };
 
-  // Step A: draw every place we already know from earlier visits. This is instant.
-  const toLookUp = [];
+  // Step A: draw every place we already know, from earlier visits or from our own
+  // place database (downloaded once per country). This is quick.
+  await loadGazetteers(places, code => setStatus(`Loading place data for ${code}...`));
+  if (run !== currentRun) return;
+  const toLookUp = [], toRefine = [];
   for (const place of places) {
     const saved = lookupSaved(place);
-    if (saved === undefined) toLookUp.push(place);
-    else pinPlace(place, saved);
+    if (saved !== undefined) { pinPlace(place, saved); continue; }
+    const found = gazetteerLookup(place);
+    if (found) pinPlace(place, found);
+    else toLookUp.push(place);
+    // Only the county or country was found: show that now, and ask online for the exact spot later.
+    if (found && found.approximate) toRefine.push(place);
   }
+  // Places with no pin at all go first; then try to sharpen the approximate ones.
+  const refining = new Set(toRefine);
+  toLookUp.push(...toRefine);
   redraw();
   zoomToPins();
 
@@ -96,7 +106,7 @@ async function showFamily(text, label) {
     const remaining = toLookUp.length - i;
     const minutes = Math.ceil(remaining * 1.6 / 60);
     setStatus(`${people.length} people, ${places.length} places. ${pinned} on the map. ` +
-      `Looking up ${remaining} new places, about ${minutes} min left. ` +
+      `Looking up ${remaining} places online (${Math.max(remaining - refining.size, 0)} not yet on the map), about ${minutes} min left. ` +
       `You can explore the map meanwhile. Progress is saved, so closing the page loses nothing.`);
     let coords;
     onLookupWait = (problem, delayMs) => {
@@ -112,6 +122,14 @@ async function showFamily(text, label) {
       return;
     }
     if (run !== currentRun) return; // a newer file was loaded; stop this one
+    if (refining.has(toLookUp[i])) {
+      // Already shown approximately; move it only if the online answer is more exact.
+      if (coords && !coords.approximate) {
+        for (const { ev } of eventsByPlace.get(toLookUp[i])) ev.coords = coords;
+        redrawSoon();
+      }
+      continue;
+    }
     pinPlace(toLookUp[i], coords);
     if (pinned === 25 || i === toLookUp.length - 1) zoomToPins();
   }
