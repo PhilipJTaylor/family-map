@@ -13,7 +13,7 @@
 </head>
 <body>
   <header>
-    <h1>Family Map <span class="version">v0.9</span></h1>
+    <h1>Family Map <span class="version">v1.0</span></h1>
     <p class="tagline">See where your ancestors were born and died. Your file stays on your computer.</p>
   </header>
 
@@ -23,6 +23,7 @@
       <input type="file" id="fileInput" accept=".ged,.gedcom,text/plain">
     </label>
     <button id="sampleButton" type="button">Or try the sample family</button>
+    <button id="logButton" type="button">Corrections log (0)</button>
     <p id="status">No file loaded yet.</p>
   </section>
 
@@ -73,6 +74,31 @@
     </aside>
   </main>
 
+  <dialog id="fixDialog">
+    <h3>Fix a location</h3>
+    <p id="fixPerson"></p>
+    <label>Which event?<br><select id="fixEvent"></select></label>
+    <p id="fixCurrent" class="muted"></p>
+    <label>Correct place<br><input id="fixPlace" placeholder="e.g. Townham, Kent, England"></label>
+    <div class="dialog-buttons">
+      <button id="fixFind" type="button">Find this place</button>
+      <button id="fixClickMap" type="button">Or click the map</button>
+      <button id="fixCancel" type="button" class="plain">Cancel</button>
+    </div>
+    <p id="fixMessage" class="muted"></p>
+  </dialog>
+
+  <dialog id="logDialog">
+    <h3>Corrections log</h3>
+    <p class="muted">Every location you fixed, so you can make the same corrections in Ancestry.</p>
+    <div class="log-scroll"><table id="logTable"></table></div>
+    <div class="dialog-buttons">
+      <button id="logDownload" type="button">Download (CSV for Excel)</button>
+      <button id="logCopy" type="button">Copy (paste into a spreadsheet)</button>
+      <button id="logClose" type="button" class="plain">Close</button>
+    </div>
+  </dialog>
+
   <footer>
     Place lookups by <a href="https://nominatim.openstreetmap.org/">OpenStreetMap Nominatim</a>.
     Only place names are sent, never names of people.
@@ -87,5 +113,6 @@
   <script src="family.js"></script>
   <script src="app.js"></script>
   <script src="arrows.js"></script>
+  <script src="corrections.js"></script>
 </body>
 </html>

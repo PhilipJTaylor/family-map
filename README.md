@@ -30,6 +30,7 @@ needs the small local web server from step 2.)
 | `arrows.js` | Arrows from parents' to children's birth places for the chosen family line. |
 | `gazetteer.js` | Looks places up in our own place database before going online. |
 | `tools/build_places.py` | Builds the place database (`data/places/*.json`) from GeoNames. Runs automatically on GitHub. |
+| `corrections.js` | Fix wrong locations and keep a log of fixes (copy or download as CSV). |
 | `app.js` | Connects everything and draws pins on the map. |
 | `sample.ged` | A small made-up family for testing. |
 

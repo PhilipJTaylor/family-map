@@ -52,6 +52,7 @@ async function showFamily(text, label) {
 
   const people = parseGedcom(text);
   currentPeople = people;
+  applySavedCorrections(people);
   setUpFamilyFilter(people);
   setUpTimeline(people);
 
@@ -74,7 +75,7 @@ async function showFamily(text, label) {
   let pinned = 0, notFound = 0;
   const pinPlace = (place, coords) => {
     if (!coords) { notFound++; return; }
-    for (const { ev } of eventsByPlace.get(place)) ev.coords = coords; // remember where each event is
+    for (const { ev } of eventsByPlace.get(place)) if (!ev.fixed) ev.coords = coords; // remember where each event is (unless you fixed it)
     redrawSoon();
     bounds.push([coords.lat, coords.lon]);
     pinned++;
@@ -125,7 +126,7 @@ async function showFamily(text, label) {
     if (refining.has(toLookUp[i])) {
       // Already shown approximately; move it only if the online answer is more exact.
       if (coords && !coords.approximate) {
-        for (const { ev } of eventsByPlace.get(toLookUp[i])) ev.coords = coords;
+        for (const { ev } of eventsByPlace.get(toLookUp[i])) if (!ev.fixed) ev.coords = coords;
         redrawSoon();
       }
       continue;
@@ -196,6 +197,12 @@ function addToDot(coords, entries, year = null) {
   dot.marker.setRadius(Math.min(4 + Math.sqrt(dot.entries.length) * 1.5, 22));
 }
 
+// A small "Fix" link that opens the fix-location window for this person (and event).
+function fixLink(person, ev) {
+  const eventAttr = ev ? ` data-fix-event="${person.events.indexOf(ev)}"` : "";
+  return `<a href="#" class="fix" data-fix-person="${escapeHtml(person.id)}"${eventAttr} title="Fix this location">Fix</a>`;
+}
+
 // The popup for a dot: everyone at that place, grouped by event and sorted by year.
 function dotPopup(dot) {
   const people = new Set(dot.entries.map(e => e.person));
@@ -210,7 +217,7 @@ function dotPopup(dot) {
     const rows = [...people].sort((a, b) => (birthYear(a) || 9999) - (birthYear(b) || 9999));
     html += `<div class="section">Living here in ${dot.year}</div><ul>`;
     for (const person of rows.slice(0, MAX_NAMES_PER_SECTION)) {
-      html += `<li>${escapeHtml(person.name)} <span class="dates">${lifeDates(person)}</span></li>`;
+      html += `<li>${escapeHtml(person.name)} <span class="dates">${lifeDates(person)}</span> ${fixLink(person)}</li>`;
     }
     if (rows.length > MAX_NAMES_PER_SECTION) html += `<li><em>and ${rows.length - MAX_NAMES_PER_SECTION} more</em></li>`;
     return html + "</ul></div>";
@@ -222,7 +229,7 @@ function dotPopup(dot) {
     if (!rows.length) continue;
     html += `<div class="section">${type}s (${rows.length})</div><ul>`;
     for (const { person, ev } of rows.slice(0, MAX_NAMES_PER_SECTION)) {
-      html += `<li>${escapeHtml(person.name)} <span class="dates">${ev.year || "?"}</span></li>`;
+      html += `<li>${escapeHtml(person.name)} <span class="dates">${ev.year || "?"}</span> ${fixLink(person, ev)}</li>`;
     }
     if (rows.length > MAX_NAMES_PER_SECTION) html += `<li><em>and ${rows.length - MAX_NAMES_PER_SECTION} more</em></li>`;
     html += "</ul>";
@@ -237,7 +244,8 @@ function listPeople(people) {
     const li = document.createElement("li");
     li.innerHTML = `${escapeHtml(person.name)} <span class="dates">${lifeDates(person)}</span>`;
     li.title = "Make this the home person";
-    li.addEventListener("click", () => setHomePerson(person));
+    li.addEventListener("click", e => { if (!e.target.closest(".fix")) setHomePerson(person); });
+    li.insertAdjacentHTML("beforeend", ` <a href="#" class="fix" data-fix-person="${escapeHtml(person.id)}" title="Fix a location">&#9998;</a>`);
     peopleListEl.appendChild(li);
   }
 }
