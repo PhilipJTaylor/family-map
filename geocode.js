@@ -52,11 +52,7 @@ function saveCacheSoon() {
   }, 3000);
 }
 
-// Tidy a place name so that spelling variants count as the same place:
-// "  Ballina ,, Mayo,Ireland " -> "Ballina, Mayo, Ireland"
-function normalizePlace(place) {
-  return place.split(",").map(p => p.trim().replace(/\s+/g, " ")).filter(Boolean).join(", ");
-}
+// (normalizePlace, which tidies place names, lives in places.js.)
 
 // The list of searches we would try for a place, most exact first:
 // "Kilmore, Mayo, Ireland" -> ["Kilmore, Mayo, Ireland", "Mayo, Ireland", "Ireland"]

@@ -23,8 +23,13 @@ needs the small local web server from step 2.)
 | `index.html` | The page itself: buttons, map area, people list. |
 | `style.css` | Colours, sizes and layout. |
 | `gedcom.js` | Reads a GEDCOM file into a list of people and their events. |
+| `places.js` | Cleans up place names so near-duplicates ("Co.", "USA" vs "United States", church names, census wards) count as one place. |
 | `geocode.js` | Looks up coordinates for place names, one per second, and remembers them. |
 | `app.js` | Connects everything and draws pins on the map. |
 | `sample.ged` | A small made-up family for testing. |
 
 Real family files (`*.ged`) are blocked from being committed by `.gitignore`.
+
+## Checking the place clean-up rules
+
+Run `node tests/places.test.js`. It checks made-up examples and prints any that fail.
