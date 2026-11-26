@@ -13,7 +13,7 @@
 </head>
 <body>
   <header>
-    <h1>Family Map <span class="version">v0.5</span></h1>
+    <h1>Family Map <span class="version">v0.6</span></h1>
     <p class="tagline">See where your ancestors were born and died. Your file stays on your computer.</p>
   </header>
 
@@ -24,6 +24,21 @@
     </label>
     <button id="sampleButton" type="button">Or try the sample family</button>
     <p id="status">No file loaded yet.</p>
+  </section>
+
+  <section class="timeline">
+    <button id="playButton" type="button">Play</button>
+    <input type="range" id="yearSlider" min="1800" max="2000" value="1800" step="1" aria-label="Year">
+    <span id="yearLabel">All years</span>
+    <label>Speed
+      <select id="speedSelect">
+        <option value="2">Slow</option>
+        <option value="5" selected>Normal</option>
+        <option value="15">Fast</option>
+        <option value="40">Very fast</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="allYears" checked> All years</label>
   </section>
 
   <main>
@@ -42,6 +57,7 @@
   <script src="gedcom.js"></script>
   <script src="places.js"></script>
   <script src="geocode.js"></script>
+  <script src="timeline.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -25,6 +25,7 @@ needs the small local web server from step 2.)
 | `gedcom.js` | Reads a GEDCOM file into a list of people and their events. |
 | `places.js` | Cleans up place names so near-duplicates ("Co.", "USA" vs "United States", church names, census wards) count as one place. |
 | `geocode.js` | Looks up coordinates for place names, one per second, and remembers them. |
+| `timeline.js` | The time player: year slider, play/pause and speed. |
 | `app.js` | Connects everything and draws pins on the map. |
 | `sample.ged` | A small made-up family for testing. |
 
