@@ -33,3 +33,7 @@ Real family files (`*.ged`) are blocked from being committed by `.gitignore`.
 ## Checking the place clean-up rules
 
 Run `node tests/places.test.js`. It checks made-up examples and prints any that fail.
+
+## Version number
+
+The page title shows a version like `v0.4` (in `index.html`). Increase it with every change, so you can tell which version the live site is showing.

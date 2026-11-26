@@ -11,6 +11,8 @@ header, .controls, footer {
 }
 
 h1 { margin: 8px 0 0; }
+/* Version label. Bump it in index.html with every change so you can tell which version is live. */
+.version { font-size: 13px; font-weight: normal; color: #888; }
 .tagline { margin: 4px 0 8px; color: #555; }
 
 .controls {
