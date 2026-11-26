@@ -2,7 +2,8 @@
 // Connects the page together: reads the chosen file, looks up places, draws the map.
 
 // 1. Create the map, centred on the Atlantic so Europe and North America both show.
-const map = L.map("map").setView([45, -30], 3);
+// preferCanvas draws pins on one canvas, which stays fast with tens of thousands of pins.
+const map = L.map("map", { preferCanvas: true }).setView([45, -30], 3);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 18,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -46,40 +47,60 @@ async function showFamily(text, label) {
   const people = parseGedcom(text);
   listPeople(people);
 
-  // Gather every event that has a place, and the unique place names.
-  const placedEvents = [];
+  // Group every event by its (tidied) place name, so each place is handled once.
+  const eventsByPlace = new Map(); // place name -> list of {person, ev}
   for (const person of people) {
     for (const ev of person.events) {
-      if (ev.place) placedEvents.push({ person, ev });
+      if (!ev.place) continue;
+      const place = normalizePlace(ev.place);
+      if (!place) continue;
+      if (!eventsByPlace.has(place)) eventsByPlace.set(place, []);
+      eventsByPlace.get(place).push({ person, ev });
     }
   }
-  const uniquePlaces = [...new Set(placedEvents.map(x => x.ev.place))];
-  setStatus(`Loaded ${label}: ${people.length} people, ${uniquePlaces.length} different places. Looking up places...`);
 
-  // Look up each place once, then pin every event at that place.
+  // Busiest places first: the places most of your family shares appear on the map early.
+  const places = [...eventsByPlace.keys()].sort((a, b) => eventsByPlace.get(b).length - eventsByPlace.get(a).length);
+
   const bounds = [];
-  let notFound = 0;
-  for (let i = 0; i < uniquePlaces.length; i++) {
-    const place = uniquePlaces[i];
-    let coords = null;
+  let pinned = 0, notFound = 0;
+  const pinPlace = (place, coords) => {
+    if (!coords) { notFound++; return; }
+    for (const { person, ev } of eventsByPlace.get(place)) addPin(person, ev, coords);
+    bounds.push([coords.lat, coords.lon]);
+    pinned++;
+  };
+  const zoomToPins = () => { if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 8 }); };
+
+  // Step A: draw every place we already know from earlier visits. This is instant.
+  const toLookUp = [];
+  for (const place of places) {
+    const saved = lookupSaved(place);
+    if (saved === undefined) toLookUp.push(place);
+    else pinPlace(place, saved);
+  }
+  zoomToPins();
+
+  // Step B: look up the rest online, one per second, adding pins as each is found.
+  for (let i = 0; i < toLookUp.length; i++) {
+    const remaining = toLookUp.length - i;
+    const minutes = Math.ceil(remaining * 1.2 / 60);
+    setStatus(`${people.length} people, ${places.length} places. ${pinned} on the map. ` +
+      `Looking up ${remaining} new places, about ${minutes} min left. ` +
+      `You can explore the map meanwhile. Progress is saved, so closing the page loses nothing.`);
+    let coords;
     try {
-      coords = await geocodePlace(place, query =>
-        setStatus(`Looking up place ${i + 1} of ${uniquePlaces.length}: ${query}`));
+      coords = await geocodePlace(toLookUp[i]);
     } catch (err) {
-      setStatus("Place lookup stopped: " + err.message + ". Try again in a minute.");
+      setStatus("Place lookup paused: " + err.message + ". Reload the page in a minute to continue where it stopped.");
       return;
     }
     if (run !== currentRun) return; // a newer file was loaded; stop this one
-
-    if (!coords) { notFound++; continue; }
-    for (const { person, ev } of placedEvents.filter(x => x.ev.place === place)) {
-      addPin(person, ev, coords);
-    }
-    bounds.push([coords.lat, coords.lon]);
+    pinPlace(toLookUp[i], coords);
+    if (pinned === 25 || i === toLookUp.length - 1) zoomToPins();
   }
 
-  if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 8 });
-  setStatus(`Done: ${people.length} people, ${uniquePlaces.length - notFound} places on the map` +
+  setStatus(`Done: ${people.length} people, ${pinned} places on the map` +
     (notFound ? `, ${notFound} places not found.` : "."));
 }
 
